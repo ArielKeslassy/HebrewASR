@@ -28,6 +28,9 @@ Key dependencies:
 
 
 ## Data Paths
+> [!NOTE]
+> The `data/` directory is excluded from this repository (via `.gitignore`) because audio files and large datasets are too heavy for GitHub. If you wish to run the code locally, please download the CommonVoice Hebrew and MUSAN datasets and place them in the folder structure described below. The `data/outputs/` directory will be generated automatically when you run the scripts.
+
 - CommonVoice test TSV: `data/commonvoice_he/test.tsv`
 - CommonVoice clips: `data/commonvoice_he/clips`
 Expected MUSAN structure includes `noise/`, `music/`, `speech/` and `.wav` files.
