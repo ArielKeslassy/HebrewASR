@@ -1,0 +1,82 @@
+from pathlib import Path
+from typing import Callable, Optional, List
+import pandas as pd
+
+from .alignment import align_word_sequences, WordEditWeights
+from .metrics import AccuracyStatistics
+
+
+def _safe_split_words(text: str) -> list[str]:
+    return [w for w in str(text).split() if w]
+
+
+def evaluate_transcriptions_tsv(
+    transcriptions_tsv: Path,
+    output_metrics_tsv: Path,
+    output_alignment_log_tsv: Path | None = None,
+    output_frequent_errors_tsv: Path | None = None,
+    reference_normalize: Optional[Callable[[str], str]] = None,
+    transcription_normalize: Optional[Callable[[str], str]] = None,
+    weights: Optional[WordEditWeights] = None,
+    frequent_errors_min_count: int = 2,
+):
+    transcriptions_tsv = Path(transcriptions_tsv)
+    df = pd.read_csv(transcriptions_tsv, sep="\t", encoding="utf-8", dtype=str).fillna("")
+
+    required_cols = {"Filename", "Reference Text", "Transcribed Text"}
+    if not required_cols.issubset(df.columns):
+        raise ValueError(f"Missing required columns. Found: {df.columns.tolist()}")
+
+    if weights is None:
+        weights = WordEditWeights()
+
+    rows_out: List[dict] = []
+    total_stats = AccuracyStatistics()
+    alignment_log_rows: List[dict] = []
+
+    for _, row in df.iterrows():
+        filename = str(row["Filename"])
+        ref_raw = str(row["Reference Text"])
+        hyp_raw = str(row["Transcribed Text"])
+
+        ref_text = reference_normalize(ref_raw) if reference_normalize else ref_raw
+        hyp_text = transcription_normalize(hyp_raw) if transcription_normalize else hyp_raw
+
+        ref_words = _safe_split_words(ref_text)
+        hyp_words = _safe_split_words(hyp_text)
+
+        alignment, _score = align_word_sequences(ref_words, hyp_words, weights=weights)
+        stats = AccuracyStatistics.from_alignment(alignment)
+        total_stats += stats
+        rows_out.append(stats.to_row(filename))
+
+        if output_alignment_log_tsv is not None:
+            for idx, (rw, hw) in enumerate(alignment):
+                op = "M" if (rw and hw and rw == hw) else ("S" if (rw and hw) else ("D" if rw else "I"))
+                alignment_log_rows.append(
+                    {
+                        "Filename": filename,
+                        "Step": idx,
+                        "Op": op,
+                        "RefWord": rw,
+                        "HypWord": hw,
+                        "RefRaw": ref_raw,
+                        "HypRaw": hyp_raw,
+                        "RefNorm": ref_text,
+                        "HypNorm": hyp_text,
+                    }
+                )
+
+    rows_out.append(total_stats.to_row("TOTAL"))
+    out_df = pd.DataFrame(rows_out)
+    out_df.to_csv(output_metrics_tsv, sep="\t", index=False, encoding="utf-8")
+
+    if output_alignment_log_tsv is not None:
+        pd.DataFrame(alignment_log_rows).to_csv(output_alignment_log_tsv, sep="\t", index=False, encoding="utf-8")
+
+    if output_frequent_errors_tsv is not None:
+        freq = total_stats.frequent_errors(min_count=frequent_errors_min_count)
+        freq_rows = [{"RefWord": ref_w, "HypWord": hyp_w, "Count": c} for (ref_w, hyp_w), c in freq]
+        pd.DataFrame(freq_rows).to_csv(output_frequent_errors_tsv, sep="\t", index=False, encoding="utf-8")
+
+    return out_df, total_stats
