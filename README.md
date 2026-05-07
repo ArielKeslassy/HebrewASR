@@ -1,8 +1,6 @@
 # Hebrew Automatic Speech Recognition (ASR) Pipeline
 🏆 **Final Grade: 97/100**
 
-**Authors:** Ariel Keslassy & Kai Cheifetz
-
 ## Overview
 This repository contains a full Hebrew Automatic Speech Recognition (ASR) pipeline built for a final academic project. It covers data loading, raw transcription using `faster-whisper`, custom text normalization, and noise robustness evaluation on the CommonVoice Hebrew dataset.
 
