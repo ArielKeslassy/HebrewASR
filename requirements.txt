@@ -1,0 +1,8 @@
+pandas
+numpy
+scipy
+soundfile
+tqdm
+faster-whisper
+num2words
+jupyter

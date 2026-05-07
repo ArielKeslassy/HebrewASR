@@ -17,14 +17,10 @@ This repository contains a full Hebrew Automatic Speech Recognition (ASR) pipeli
 ## Environment
 Recommended Python: `3.10+`
 
-Key dependencies:
-- `pandas`
-- `numpy`
-- `scipy`
-- `soundfile`
-- `tqdm`
-- `faster-whisper`
-- `num2words`
+Install the required dependencies using:
+```bash
+pip install -r requirements.txt
+```
 
 
 ## Data Paths
@@ -73,7 +69,7 @@ Normalization notes:
 ### Stage D - Noise robustness
 Full run:
 ```powershell
-python3 run_part_d.py --musan_root "C:\Users\kaiia\OneDrive\Desktop\musan\musan" --modulo_val 2 --seed 42
+python3 run_part_d.py --musan_root "/path/to/musan" --modulo_val 2 --seed 42
 ```
 
 Resume only (skip re-noising):
