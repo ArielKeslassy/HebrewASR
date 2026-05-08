@@ -4,6 +4,38 @@
 ## Overview
 This repository contains a full Hebrew Automatic Speech Recognition (ASR) pipeline built for a final academic project. It covers data loading, raw transcription using `faster-whisper`, custom text normalization, and noise robustness evaluation on the CommonVoice Hebrew dataset.
 
+## Problem Statement
+Automatic Speech Recognition (ASR) for the Hebrew language presents unique challenges compared to English. Hebrew is a morphologically rich language where vowels are often omitted in written text (unvocalized), and digit-to-word conversions heavily depend on grammatical gender. Off-the-shelf models often output raw numbers, punctuation, or diacritics (niqqud) that mismatch the ground truth transcriptions. This leads to artificially inflated Word Error Rates (WER) even when the model's acoustic phonetic predictions are perfectly accurate. 
+
+This project aims to evaluate an out-of-the-box ASR model on Hebrew data, identify its primary error modes, design an iterative text normalization pipeline to bridge the gap between spoken and written Hebrew, and finally, stress-test the model's acoustic robustness against synthetic background noise.
+
+## Theoretical Background
+This project bridges several core concepts in speech processing and natural language processing:
+
+1. **Word Error Rate (WER) & Sequence Alignment**: 
+   To accurately evaluate the ASR model, we use Dynamic Programming (similar to Levenshtein distance) to align the predicted transcript with the reference text. This algorithm calculates the optimal number of Substitutions ($S$), Deletions ($D$), and Insertions ($I$). The WER is defined as $WER = (S + D + I) / N_{gt}$ (where $N_{gt}$ is the number of words in the ground truth). We also compute Recall, Precision, and F1-scores based on these alignment counts.
+2. **Text Normalization**: 
+   Due to orthographic variations (e.g., differences in spelling equivalence, presence of diacritics), raw ASR outputs often penalize the model unfairly. We implemented a 5-stage NLP normalization pipeline that standardizes punctuation, strips diacritics, maps lexical equivalences, and converts numerical digits to their correct Hebrew word representations using `num2words`.
+3. **Signal-to-Noise Ratio (SNR) & Acoustic Robustness**:
+   Real-world ASR systems must handle environmental noise. We simulate this by downsampling our audio to 16kHz and injecting background interference from the MUSAN dataset. We dynamically scale the background noise by calculating the signal energy and applying a scaling factor $\alpha$ to achieve a target Signal-to-Noise Ratio (SNR) in the $6-12 \text{ dB}$ range.
+
+## Results & Insights
+Our systematic evaluation yielded the following progression on the CommonVoice test set:
+
+| Stage | Description | WER | F1-Score |
+| :--- | :--- | :--- | :--- |
+| **Stage B** | Raw Baseline (No Normalization) | 35.36% | 66.20% |
+| **Stage C.1** | Diacritics Stripped | 23.27% | - |
+| **Stage C.2** | Punctuation Standardized | 11.42% | - |
+| **Stage C.4** | Full Lexical Normalization | 8.05% | 92.58% |
+| **Stage C.5** | Digit-to-Word Conversion | **6.94%** | **93.50%** |
+| **Stage D** | Noisy Audio (SNR 6-12dB) | 12.70% | 88.33% |
+
+**Key Takeaways:**
+* **Text Normalization is Crucial:** Over 80% of the baseline errors were "artificial" orthographic mismatches. By standardizing the text, we reduced the WER from 35.36% to a highly accurate 6.94%.
+* **Grammatical Gender Limitations:** Even with `num2words`, Hebrew's complex grammatical gender rules for numbers remain a persistent source of error.
+* **Acoustic Robustness:** The introduction of moderate background noise ($6-12 \text{ dB}$ SNR) degraded performance back to 12.70% WER, demonstrating that while the text pipeline is strong, the acoustic model still struggles to isolate phonemes in noisy environments.
+
 ## Repository Layout
 - `asr_project/`: core implementation (loading, transcription, alignment, metrics, normalization, noise augmentation).
 - `data/commonvoice_he/`: CommonVoice Hebrew files and clips.
@@ -86,37 +118,6 @@ Additional outputs for insights:
 - `data/outputs/part_d_frequent_errors.tsv`
 - `data/outputs/part_d_alignment_log.tsv`
 
-
-## Results Summary
-### Stage A
-- Produced transcription file with `910` utterances (`911` lines including header).
-
-### Stage B (Raw, no normalization)
-- `WER = 0.3536`
-- `Recall = 0.6633`
-- `Precision = 0.6608`
-- `F1 = 0.6620`
-
-### Stage C (Iterative normalization)
-- `C_stage1_diacritics_only`: `WER = 0.2327`
-- `C_stage2_plus_punctuation`: `WER = 0.1142`
-- `C_stage3_plus_hyphen`: `WER = 0.0844`
-- `C_stage4_complete_normalization`: `WER = 0.0805`
-- `C_stage5_plus_num2words`: `WER = 0.0694`
-
-Observation:
-- Most gains come from text normalization (diacritics/punctuation/hyphen).
-- `num2words` further improves WER but Hebrew grammatical gender remains a known limitation.
-
-### Stage D (Noisy audio, modulo profile 2)
-- `WER = 0.1270`
-- `Recall = 0.8800`
-- `Precision = 0.8866`
-- `F1 = 0.8833`
-
-Observation:
-- Noise degrades performance relative to best clean normalization.
-- Numeric forms and lexical confusions remain dominant error classes in noisy conditions.
 
 ## Notebook Comparison Graphs
 `ASR_Final_Project.ipynb` includes Part D analysis cells (after stage D outputs) that:
